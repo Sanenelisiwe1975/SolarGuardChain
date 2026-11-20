@@ -1,0 +1,10 @@
+{
+  "name": "SolarGuard",
+  "short_name": "SolarGuard",
+  "description": "Protect solar panels and check if a second-hand panel is stolen.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#EEF1F5",
+  "theme_color": "#1F3A68",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

@@ -1,0 +1,19 @@
+{
+  "name": "solarguard-contracts",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "node compile.js && node test.js",
+    "compile": "node compile.js",
+    "deploy": "node compile.js && node deploy.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "ethers": "^6.17.0",
+    "ganache": "^7.9.2",
+    "solc": "^0.8.24"
+  }
+}
