@@ -12,9 +12,9 @@ services:
       - key: CHAIN_MODE
         value: fuji
       - key: REGISTRY_ADDRESS        # public contract address, safe to commit
-        value: "0xC5b0c5A4CC98d6eD8Ba8860e57145fCc069B06C7"
+        value: "0x1F9F13Ba36A6E65E319C4D02a7B7a4835DDF4187"
       - key: REGISTRY_FROM_BLOCK     # block the contract was deployed in
-        value: "61378590"
+        value: "61393402"
       - key: RELAYER_PRIVATE_KEY     # secret: paste in the Render dashboard
         sync: false
       - key: OWNER_SALT              # secret: must be the SAME value as backend/.env, or owner IDs stop matching

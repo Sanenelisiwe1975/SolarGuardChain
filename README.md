@@ -73,7 +73,7 @@ The contract (`contracts/SolarRegistry.sol`) uses audited OpenZeppelin building 
    npm test                                   # compile + 15 contract tests
    RELAYER_PRIVATE_KEY=0x... npm run deploy   # prints the address, block and .env lines
    ```
-4. Verify the source on [testnet.snowscan.xyz](https://testnet.snowscan.xyz): open the contract, choose **Verify**, pick **Standard JSON input**, compiler **0.8.24**, and upload `contracts/build/verify-input.json`.
+4. Verify the source on [testnet.snowtrace.io](https://testnet.snowtrace.io): open the contract, choose **Verify**, pick **Standard JSON input**, compiler **0.8.24**, and upload `contracts/build/verify-input.json`.
 5. Set these in `backend/.env`, delete the old database (or point `DB_PATH` at a new file), and restart:
    ```
    CHAIN_MODE=fuji
@@ -94,7 +94,7 @@ On start the API checks that `RPC_URL` really is chain `CHAIN_ID` and refuses to
 
 The tests always run on the local ledger (`backend/tests/conftest.py`), even when `.env` is set to Fuji.
 
-**Live contract:** [`0xC5b0c5A4CC98d6eD8Ba8860e57145fCc069B06C7`](https://testnet.snowscan.xyz/address/0xC5b0c5A4CC98d6eD8Ba8860e57145fCc069B06C7) on Fuji. It predates the OpenZeppelin version; redeploy to get roles and pause.
+**Live contract:** [`0x1F9F13Ba36A6E65E319C4D02a7B7a4835DDF4187`](https://testnet.snowtrace.io/address/0x1F9F13Ba36A6E65E319C4D02a7B7a4835DDF4187) on Fuji (OpenZeppelin roles and pause).
 
 ## Optional integrations
 

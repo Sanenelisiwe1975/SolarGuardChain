@@ -36,7 +36,7 @@ class Settings:
     chain_id: int = int(os.getenv("CHAIN_ID", "43113"))
     registry_address: str = os.getenv("REGISTRY_ADDRESS", "")
     relayer_private_key: str = os.getenv("RELAYER_PRIVATE_KEY", "")
-    explorer_base: str = os.getenv("EXPLORER_BASE", "https://testnet.snowscan.xyz")
+    explorer_base: str = os.getenv("EXPLORER_BASE", "https://testnet.snowtrace.io")
     # Where to read the contract's past events after a restart. Public RPCs only
     # return 100 blocks of logs per call, so an Etherscan-style indexer is used.
     registry_from_block: int = int(os.getenv("REGISTRY_FROM_BLOCK", "0"))

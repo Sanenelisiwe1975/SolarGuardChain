@@ -10,7 +10,7 @@ const artifact = require("./build/SolarRegistry.json");
 const RPC = process.env.RPC_URL || "https://api.avax-test.network/ext/bc/C/rpc";
 const KEY = process.env.RELAYER_PRIVATE_KEY;
 const FUJI = 43113n;
-const EXPLORER = "https://testnet.snowscan.xyz";
+const EXPLORER = "https://testnet.snowtrace.io";
 
 (async () => {
   if (!KEY) throw new Error("Set RELAYER_PRIVATE_KEY");
