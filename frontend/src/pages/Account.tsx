@@ -4,7 +4,7 @@ import { ArrowRightLeft, Inbox, LogOut } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { RegistryBadge, SensorBadge } from '../components/Badges'
-import { PanelGlyph } from '../components/PanelGlyph'
+import { PanelPhoto } from '../components/PanelPhoto'
 import { useToast } from '../components/Toast'
 import { api, ApiError, getToken, setToken, type Me, type Panel, type TransferOffer } from '../lib/api'
 import { ago } from '../lib/format'
@@ -194,8 +194,8 @@ function MyPanel({ panel: p, pending }: { panel: Panel; pending?: TransferOffer 
 
   return (
     <li className="rounded-xl border border-rule bg-sheet p-4">
-      <div className="grid grid-cols-[64px_1fr] items-center gap-4">
-        <PanelGlyph state={p.sensorState} status={p.status} tilt={p.tilt} />
+      <div className="grid grid-cols-[96px_1fr] items-center gap-4">
+        <PanelPhoto state={p.sensorState} status={p.status} tilt={p.tilt} serial={p.serial} />
         <div className="min-w-0">
           <Link to={`/panels/${p.serial}`} className="text-lg font-bold hover:underline">{p.serial}</Link>
           <p className="truncate text-sm text-muted">{p.model || 'Model not recorded'}, {p.area}</p>

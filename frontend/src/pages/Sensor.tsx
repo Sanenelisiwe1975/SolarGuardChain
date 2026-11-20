@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import clsx from 'clsx'
 import { useEffect, useRef, useState } from 'react'
-import { PanelGlyph } from '../components/PanelGlyph'
+import { PanelPhoto } from '../components/PanelPhoto'
 import { api, type SensorState } from '../lib/api'
 
 /* Thresholds mirror the server's classifier (backend/app/intelligence.py). */
@@ -171,7 +171,7 @@ export function Sensor() {
 
       <div className={clsx('mt-4 rounded-2xl px-5 py-6 transition-colors', running ? view.cls : 'bg-[#E6EAF0] text-muted')}>
         <div className="flex items-center gap-5">
-          <PanelGlyph state={glyphState} status="clean" tilt={tilt} />
+          <PanelPhoto state={glyphState} status="clean" tilt={tilt} serial={serial} />
           <div>
             <p className="text-3xl font-extrabold" style={{ fontStretch: '125%' }}>{running ? view.title : 'Not running'}</p>
             <p className="mt-0.5">{running ? view.body : 'Tap Start sensor to begin.'}</p>
