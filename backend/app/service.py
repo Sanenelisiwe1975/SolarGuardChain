@@ -121,6 +121,15 @@ class SolarGuard:
             (serial, kind, detail, from_hash, to_hash, tx_hash, actor, ts or now()),
         )
 
+    def _cancel_pending_transfers(self, serial: str) -> None:
+        """Owner-to-owner transfer offers lapse once the panel changes hands or is stolen."""
+        cur = self.db.execute(
+            "UPDATE transfer_requests SET status = 'cancelled', resolved_at = ? WHERE serial = ? AND status = 'pending'",
+            (now(), serial),
+        )
+        if cur.rowcount:
+            self.bus.publish("transfers", {"serial": serial})
+
     # ---------- queries ----------
 
     def list_panels(self) -> list[dict]:
@@ -129,24 +138,42 @@ class SolarGuard:
     def get_panel(self, serial: str) -> dict:
         return self._panel(self._get(normalise_serial(serial)), with_history=True)
 
-    def lookup(self, serial: str) -> dict:
-        """Public check for buyers. No personal data leaves this function."""
+    async def lookup(self, serial: str) -> dict:
+        """Public check for buyers. No personal data leaves this function.
+
+        The verdict comes from the registry itself (the contract on Fuji, the
+        hash-chained ledger locally), not from the app's own tables. The app
+        database only adds descriptive details such as the model."""
         s = normalise_serial(serial)
         p = self.db.one("SELECT * FROM panels WHERE serial = ?", (s,))
-        if not p:
-            return {"serial": s, "result": "unregistered", "history": []}
-        history = self._history(s)  # owner hashes only, never names or contacts
-        transfers = sum(1 for e in history if e["kind"] == "transferred")
+        try:
+            rec = await self.registry.status(s)
+            verified = True
+        except Exception as exc:  # registry unreachable: say so rather than fail
+            log.warning("Registry read failed for %s: %s", s, exc)
+            rec, verified = None, False
+
+        if rec:
+            result, owner, transfers = rec.status, rec.owner_hash, rec.transfers
+        elif p:
+            result, owner = p["status"], p["owner_hash"]
+            transfers = sum(1 for e in self._history(s) if e["kind"] == "transferred")
+        else:
+            result, owner, transfers = "unregistered", None, 0
+
+        base = {"serial": s, "result": result, "registry": self.registry.label, "verifiedOnRegistry": verified}
+        if result == "unregistered":
+            return {**base, "history": []}
         return {
-            "serial": s,
-            "result": p["status"],  # clean | stolen
-            "installer": p["installer"],
-            "model": p["model"],
-            "registeredAt": p["registered_at"],
+            **base,
+            "installer": p["installer"] if p else None,
+            "model": p["model"] if p else "",
+            "registeredAt": p["registered_at"] if p else None,
             "transfers": transfers,
-            "currentOwner": _short(p["owner_hash"]),
-            "history": history,
-            "registry": self.registry.label,
+            "currentOwner": _short(owner),
+            "history": self._history(s) if p else [],  # owner hashes only, never names or contacts
+            # The app's copy should always agree with the registry; if not, the registry wins.
+            "matchesRegistry": bool(p) and rec is not None and p["status"] == rec.status and p["owner_hash"] == rec.owner_hash,
         }
 
     def list_alerts(self, status: str | None = None) -> list[dict]:
@@ -208,6 +235,7 @@ class SolarGuard:
         )
         self._record(s, "transferred", tx.tx_hash, actor, "Ownership transferred",
                      from_hash=p["owner_hash"], to_hash=new_hash, ts=t)
+        self._cancel_pending_transfers(s)
         self.bus.publish("panels", {"serial": s})
         return self.get_panel(s)
 
@@ -222,6 +250,7 @@ class SolarGuard:
         t = ts or now()
         self.db.execute("UPDATE panels SET status = 'stolen', updated_at = ? WHERE serial = ?", (t, s))
         self._record(s, "reported_stolen", tx.tx_hash, actor, ref, ts=t)
+        self._cancel_pending_transfers(s)
         self.bus.publish("panels", {"serial": s})
         return self.get_panel(s)
 

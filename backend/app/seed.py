@@ -2,13 +2,21 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from .db import now
 from .service import SolarGuard
+
+if TYPE_CHECKING:
+    from .accounts import Accounts
 
 DAY = 86400.0
 
 
-async def seed(sg: SolarGuard) -> None:
+DEMO_PASSWORD = "solarguard"
+
+
+async def seed(sg: SolarGuard, accounts: Accounts | None = None) -> None:
     sg.db.reset()
     t = now()
     installer = "Sunbelt Installers (demo)"
@@ -28,3 +36,10 @@ async def seed(sg: SolarGuard) -> None:
     await sg.register("SG-0666", "Lerato Dlamini", "+27 72 000 0666", installer, "Kempton Park",
                       "Longi 540W", ts=t - 200 * DAY)
     await sg.report_stolen("SG-0666", "CAS 214/11/2026 (fictional)", actor="SAPS (demo)", ts=t - 5 * DAY)
+
+    # Demo profiles (password: solarguard). Thandi owns SG-0042 and SG-0043;
+    # Ayanda owns nothing yet and is the buyer in the transfer demo.
+    if accounts:
+        accounts.signup("Thandi Mokoena", "+27 71 000 0042", DEMO_PASSWORD)
+        accounts.signup("Sipho Khumalo", "+27 83 000 0107", DEMO_PASSWORD)
+        accounts.signup("Ayanda Nkosi", "+27 74 000 0200", DEMO_PASSWORD)

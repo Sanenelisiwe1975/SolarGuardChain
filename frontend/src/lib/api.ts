@@ -77,9 +77,47 @@ export interface Lookup {
   currentOwner?: string
   history: LedgerEvent[]
   registry?: string
+  verifiedOnRegistry?: boolean
+  matchesRegistry?: boolean
 }
 
 export interface Outage { area: string; active: boolean }
+
+export interface User { id: number; name: string; contact: string; ownerId: string }
+
+export interface TransferOffer {
+  id: number
+  serial: string
+  model: string
+  fromName: string | null
+  toName: string | null
+  toContact: string
+  status: 'pending' | 'accepted' | 'declined' | 'cancelled'
+  createdAt: number
+  resolvedAt: number | null
+}
+
+export interface Me {
+  user: User
+  panels: Panel[]
+  incoming: TransferOffer[]
+  outgoing: TransferOffer[]
+}
+
+/* The session token lives in this browser only. Storage can be blocked
+   (private windows, cleared site data), so every access is guarded. */
+const TOKEN_KEY = 'solarguard.token'
+let token: string | null = null
+try { token = localStorage.getItem(TOKEN_KEY) } catch { /* not available */ }
+
+export function getToken() { return token }
+export function setToken(t: string | null) {
+  token = t
+  try {
+    if (t) localStorage.setItem(TOKEN_KEY, t)
+    else localStorage.removeItem(TOKEN_KEY)
+  } catch { /* not available */ }
+}
 
 export class ApiError extends Error {
   status: number
@@ -92,7 +130,11 @@ export class ApiError extends Error {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, {
     ...init,
-    headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(init?.headers ?? {}),
+    },
   })
   if (!res.ok) {
     let message = `Request failed (${res.status})`
@@ -128,4 +170,16 @@ export const api = {
   outages: () => request<Outage[]>('/demo/outages'),
   setOutage: (area: string, active: boolean) => post<Outage[]>('/demo/outages', { area, active }),
   reset: () => post<{ ok: boolean }>('/demo/reset'),
+
+  signup: (body: { name: string; contact: string; password: string }) =>
+    post<{ token: string; user: User }>('/auth/signup', body),
+  login: (body: { contact: string; password: string }) =>
+    post<{ token: string; user: User }>('/auth/login', body),
+  logout: () => post<{ ok: boolean }>('/auth/logout'),
+  me: () => request<Me>('/me'),
+  offerTransfer: (serial: string, toContact: string) =>
+    post<Me>(`/me/panels/${encodeURIComponent(serial)}/transfer`, { toContact }),
+  acceptTransfer: (id: number) => post<Me>(`/me/transfers/${id}/accept`),
+  declineTransfer: (id: number) => post<Me>(`/me/transfers/${id}/decline`),
+  cancelTransfer: (id: number) => post<Me>(`/me/transfers/${id}/cancel`),
 }

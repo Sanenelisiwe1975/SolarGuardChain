@@ -12,6 +12,7 @@ import asyncio
 import hashlib
 import json
 import logging
+import re
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -35,13 +36,51 @@ class RegistryClient(Protocol):
     async def transfer(self, serial: str, new_owner_hash: str) -> TxResult: ...
     async def report_stolen(self, serial: str, case_ref: str) -> TxResult: ...
     async def recover(self, serial: str) -> TxResult: ...
+    async def status(self, serial: str) -> RegistryRecord: ...
     def info(self) -> dict: ...
+
+
+@dataclass
+class RegistryRecord:
+    """What the registry itself says about a serial."""
+    status: str               # unregistered | clean | stolen
+    owner_hash: str | None
+    transfers: int
+
+
+def normalise_contact(contact: str) -> str:
+    """One spelling per person: emails lower-cased, SA phone numbers as +27…
+    so '071 000 0042' and '+27 71 000 0042' are the same owner."""
+    c = contact.strip().lower()
+    if "@" in c:
+        return c
+    digits = re.sub(r"[\s\-().]", "", c)
+    if re.fullmatch(r"\+?\d{6,15}", digits):
+        if digits.startswith("0"):
+            return "+27" + digits[1:]
+        return digits if digits.startswith("+") else "+" + digits
+    return c
 
 
 def owner_hash(contact: str) -> str:
     """Salted SHA-256 of the owner's contact, as 0x-prefixed bytes32 hex."""
-    digest = hashlib.sha256(f"{settings.owner_salt}:{contact.strip().lower()}".encode()).hexdigest()
+    digest = hashlib.sha256(f"{settings.owner_salt}:{normalise_contact(contact)}".encode()).hexdigest()
     return "0x" + digest
+
+
+def _replay(actions: list[tuple[str, dict]]) -> RegistryRecord:
+    """Apply registry actions in order, exactly as the contract would."""
+    status, owner, transfers = "unregistered", None, 0
+    for action, payload in actions:
+        if action == "registerPanel":
+            status, owner = "clean", payload["ownerHash"]
+        elif action == "transferOwnership":
+            owner, transfers = payload["ownerHash"], transfers + 1
+        elif action == "reportStolen":
+            status = "stolen"
+        elif action == "markRecovered":
+            status = "clean"
+    return RegistryRecord(status, owner, transfers)
 
 
 class LocalLedger:
@@ -74,6 +113,13 @@ class LocalLedger:
 
     async def recover(self, serial: str) -> TxResult:
         return self._append(serial, "markRecovered", {})
+
+    async def status(self, serial: str) -> RegistryRecord:
+        """Rebuild the panel's state from the ledger alone, not the app tables."""
+        if not self.verify():
+            raise RuntimeError("Local ledger failed its integrity check")
+        rows = self.db.all("SELECT action, payload FROM ledger WHERE serial = ? ORDER BY id", (serial,))
+        return _replay([(r["action"], json.loads(r["payload"])) for r in rows])
 
     def verify(self) -> bool:
         """Recompute every link of the hash chain; False if any row was edited."""
@@ -146,6 +192,14 @@ class FujiRegistry:
 
     async def recover(self, serial: str) -> TxResult:
         return await self._tx(self.contract.functions.markRecovered(serial))
+
+    async def status(self, serial: str) -> RegistryRecord:
+        """Read the panel straight from the contract (a free view call)."""
+        owner, _registrar, _registered, _updated, transfers, status = await asyncio.to_thread(
+            self.contract.functions.getPanel(serial).call
+        )
+        name = ("unregistered", "clean", "stolen")[status]
+        return RegistryRecord(name, "0x" + bytes(owner).hex() if status else None, int(transfers))
 
     def info(self) -> dict:
         address = self.contract.address

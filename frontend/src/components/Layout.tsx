@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import clsx from 'clsx'
-import { Bell, LayoutGrid, PlusSquare, ScanLine, Smartphone, SlidersHorizontal } from 'lucide-react'
+import { Bell, LayoutGrid, PlusSquare, ScanLine, Smartphone, SlidersHorizontal, UserRound } from 'lucide-react'
 import { useCallback } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { api } from '../lib/api'
@@ -13,6 +13,7 @@ const nav = [
   { to: '/check', label: 'Check a panel', short: 'Check', icon: ScanLine },
   { to: '/register', label: 'Register', icon: PlusSquare },
   { to: '/sensor', label: 'Phone sensor', short: 'Sensor', icon: Smartphone },
+  { to: '/account', label: 'My profile', short: 'Me', icon: UserRound },
 ]
 
 function Brand() {
@@ -75,7 +76,7 @@ export function Layout() {
       </main>
 
       {/* Mobile bottom nav */}
-      <nav aria-label="Main" className="safe-bottom fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-rule bg-sheet md:hidden">
+      <nav aria-label="Main" className="safe-bottom fixed inset-x-0 bottom-0 z-30 grid grid-cols-6 border-t border-rule bg-sheet md:hidden">
         {nav.map(({ to, label, short, icon: Icon, end }) => (
           <NavLink
             key={to}

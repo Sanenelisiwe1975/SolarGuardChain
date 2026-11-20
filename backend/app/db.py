@@ -57,6 +57,31 @@ CREATE TABLE IF NOT EXISTS outages (
     active INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    contact TEXT NOT NULL UNIQUE,   -- normalised phone or email
+    owner_hash TEXT NOT NULL,       -- same anonymous ID the registry uses
+    password_hash TEXT NOT NULL,
+    created_at REAL NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS sessions (
+    token_hash TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    created_at REAL NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS transfer_requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    serial TEXT NOT NULL,
+    from_user_id INTEGER NOT NULL,
+    to_user_id INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',  -- pending | accepted | declined | cancelled
+    created_at REAL NOT NULL,
+    resolved_at REAL
+);
+
 CREATE TABLE IF NOT EXISTS ledger (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     serial TEXT NOT NULL,
@@ -98,7 +123,8 @@ class Database:
 
     def reset(self) -> None:
         with self._lock:
-            for table in ("panels", "ownership_events", "alerts", "outages", "ledger"):
+            for table in ("panels", "ownership_events", "alerts", "outages", "ledger",
+                          "users", "sessions", "transfer_requests"):
                 self._conn.execute(f"DELETE FROM {table}")
             self._conn.execute("DELETE FROM sqlite_sequence")
             self._conn.commit()

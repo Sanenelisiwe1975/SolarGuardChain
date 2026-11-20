@@ -30,6 +30,7 @@ export function useLiveUpdates(onAlert?: (title: string) => void) {
           if (data.title && onAlert) onAlert(String(data.title))
         }
         if (topic === 'outages') qc.invalidateQueries({ queryKey: ['outages'] })
+        if (topic === 'transfers' || topic === 'panels') qc.invalidateQueries({ queryKey: ['me'] })
       } catch { /* ignore malformed events */ }
     }
     return () => es.close()

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import clsx from 'clsx'
-import { CircleCheck, CircleHelp, OctagonAlert, ScanLine } from 'lucide-react'
+import { CircleCheck, CircleHelp, OctagonAlert, ScanLine, ShieldAlert, ShieldCheck } from 'lucide-react'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Scanner } from '../components/Scanner'
@@ -99,6 +99,15 @@ function Verdict({ result: r }: { result: Lookup }) {
         <p className="mt-1 text-lg font-semibold opacity-90">{r.serial}{r.model ? `, ${r.model}` : ''}</p>
         <p className="mt-3 max-w-prose text-[17px] leading-relaxed">{view.body}</p>
       </div>
+
+      {r.registry && (
+        <p className={clsx('mt-3 flex items-center gap-2 text-sm', r.verifiedOnRegistry ? 'text-muted' : 'font-medium text-breach')}>
+          {r.verifiedOnRegistry ? <ShieldCheck size={16} aria-hidden /> : <ShieldAlert size={16} aria-hidden />}
+          {r.verifiedOnRegistry
+            ? `Verdict read directly from the registry (${r.registry}), not from SolarGuard's own database.`
+            : `The registry (${r.registry}) could not be reached. This result comes from SolarGuard's copy; check again later.`}
+        </p>
+      )}
 
       {r.history.length > 0 && (
         <div className="mt-5 rounded-2xl border border-rule bg-sheet p-5 md:p-7">

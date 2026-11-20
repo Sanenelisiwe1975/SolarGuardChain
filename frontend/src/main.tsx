@@ -5,6 +5,7 @@ import { createBrowserRouter, Link, RouterProvider } from 'react-router-dom'
 import { Layout } from './components/Layout'
 import { ToastProvider } from './components/Toast'
 import './index.css'
+import { Account } from './pages/Account'
 import { Alerts } from './pages/Alerts'
 import { Check } from './pages/Check'
 import { Demo } from './pages/Demo'
@@ -36,6 +37,7 @@ const router = createBrowserRouter([
       { path: '/check', element: <Check /> },
       { path: '/check/:serial', element: <Check /> },
       { path: '/register', element: <Register /> },
+      { path: '/account', element: <Account /> },
       { path: '/sensor', element: <Sensor /> },
       { path: '/demo', element: <Demo /> },
       { path: '*', element: <NotFound /> },

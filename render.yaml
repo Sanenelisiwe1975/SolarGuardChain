@@ -1,0 +1,20 @@
+# Render blueprint: New > Blueprint > pick this repo. Gives one public HTTPS URL
+# for the dashboard, the buyer check and the phone sensor (no ngrok needed).
+# The free plan has no persistent disk: the demo data reloads after each deploy or idle restart.
+services:
+  - type: web
+    name: solarguard
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: OWNER_SALT
+        generateValue: true
+      - key: CHAIN_MODE
+        value: local          # set to fuji and add the two values below once the contract is deployed
+      - key: REGISTRY_ADDRESS
+        sync: false
+      - key: RELAYER_PRIVATE_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false

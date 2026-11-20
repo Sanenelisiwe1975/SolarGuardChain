@@ -8,12 +8,13 @@ import contextlib
 import logging
 from typing import Literal
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from .accounts import Accounts
 from .chain import make_registry
 from .config import settings
 from .db import Database
@@ -58,17 +59,42 @@ class OutageBody(BaseModel):
     active: bool
 
 
+class SignupBody(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    contact: str = Field(min_length=3, max_length=120)
+    password: str = Field(min_length=8, max_length=200)
+
+
+class LoginBody(BaseModel):
+    contact: str = Field(min_length=3, max_length=120)
+    password: str = Field(min_length=1, max_length=200)
+
+
+class OfferBody(BaseModel):
+    toContact: str = Field(min_length=3, max_length=120)
+
+
+def _bearer(authorization: str | None) -> str:
+    if authorization and authorization.lower().startswith("bearer "):
+        return authorization[7:].strip()
+    return ""
+
+
 # ---------- app factory ----------
 
 def create_app(db_path: str | None = None, run_watchdog: bool = True) -> FastAPI:
     db = Database(db_path or settings.db_path)
     bus = Broadcaster()
     sg = SolarGuard(db, make_registry(db), bus)
+    accounts = Accounts(sg)
+
+    def current_user(authorization: str | None = Header(default=None)) -> dict:
+        return accounts.user_for_token(_bearer(authorization))
 
     @contextlib.asynccontextmanager
     async def lifespan(app: FastAPI):
         if not db.one("SELECT 1 FROM panels LIMIT 1"):
-            await seed(sg)
+            await seed(sg, accounts)
         task = None
         if run_watchdog:
             async def loop():
@@ -109,8 +135,8 @@ def create_app(db_path: str | None = None, run_watchdog: bool = True) -> FastAPI
         return sg.get_panel(serial)
 
     @app.get("/api/lookup/{serial}")
-    def lookup(serial: str):
-        return sg.lookup(serial)
+    async def lookup(serial: str):
+        return await sg.lookup(serial)
 
     @app.get("/api/alerts")
     def alerts(status: str | None = None):
@@ -141,6 +167,40 @@ def create_app(db_path: str | None = None, run_watchdog: bool = True) -> FastAPI
     def dismiss(alert_id: int):
         return sg.dismiss_alert(alert_id)
 
+    # --- owner profiles ---
+    @app.post("/api/auth/signup", status_code=201)
+    def signup(body: SignupBody):
+        return accounts.signup(body.name, body.contact, body.password)
+
+    @app.post("/api/auth/login")
+    def login(body: LoginBody):
+        return accounts.login(body.contact, body.password)
+
+    @app.post("/api/auth/logout")
+    def logout(authorization: str | None = Header(default=None)):
+        accounts.logout(_bearer(authorization))
+        return {"ok": True}
+
+    @app.get("/api/me")
+    def me(user: dict = Depends(current_user)):
+        return accounts.me(user)
+
+    @app.post("/api/me/panels/{serial}/transfer")
+    def offer_transfer(serial: str, body: OfferBody, user: dict = Depends(current_user)):
+        return accounts.offer_transfer(user, serial, body.toContact)
+
+    @app.post("/api/me/transfers/{request_id}/accept")
+    async def accept_transfer(request_id: int, user: dict = Depends(current_user)):
+        return await accounts.accept(user, request_id)
+
+    @app.post("/api/me/transfers/{request_id}/decline")
+    def decline_transfer(request_id: int, user: dict = Depends(current_user)):
+        return accounts.decline(user, request_id)
+
+    @app.post("/api/me/transfers/{request_id}/cancel")
+    def cancel_transfer(request_id: int, user: dict = Depends(current_user)):
+        return accounts.cancel(user, request_id)
+
     # --- sensor ---
     @app.post("/api/sensor/events")
     async def sensor(body: SensorBody):
@@ -160,7 +220,7 @@ def create_app(db_path: str | None = None, run_watchdog: bool = True) -> FastAPI
     async def reset():
         if sg.registry.mode != "local":
             raise ServiceError(409, "On Fuji the chain cannot be reset. Redeploy the contract and delete the database.")
-        await seed(sg)
+        await seed(sg, accounts)
         bus.publish("reset")
         return {"ok": True}
 
