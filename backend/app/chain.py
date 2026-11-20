@@ -68,6 +68,12 @@ def owner_hash(contact: str) -> str:
     return "0x" + digest
 
 
+def _hex(v: str) -> int:
+    """Indexers write zero as a bare '0x'."""
+    v = v.removeprefix("0x")
+    return int(v, 16) if v else 0
+
+
 def _replay(actions: list[tuple[str, dict]]) -> RegistryRecord:
     """Apply registry actions in order, exactly as the contract would."""
     status, owner, transfers = "unregistered", None, 0
@@ -200,6 +206,62 @@ class FujiRegistry:
         )
         name = ("unregistered", "clean", "stolen")[status]
         return RegistryRecord(name, "0x" + bytes(owner).hex() if status else None, int(transfers))
+
+    def _events_sync(self) -> list[dict]:
+        """Every registry event since deployment, oldest first, decoded."""
+        import httpx
+        from eth_abi import decode
+        from web3 import Web3
+
+        layouts = {  # event signature -> (action, non-indexed field names, their ABI types)
+            "PanelRegistered(bytes32,string,bytes32,address)":
+                ("registerPanel", ["serial", "ownerHash"], ["string", "bytes32"]),
+            "OwnershipTransferred(bytes32,string,bytes32,bytes32,address)":
+                ("transferOwnership", ["serial", "fromOwner", "ownerHash"], ["string", "bytes32", "bytes32"]),
+            "PanelReportedStolen(bytes32,string,string,address)":
+                ("reportStolen", ["serial", "caseRef"], ["string", "string"]),
+            "PanelRecovered(bytes32,string,address)":
+                ("markRecovered", ["serial"], ["string"]),
+        }
+        by_topic = {Web3.keccak(text=sig).hex().removeprefix("0x"): v for sig, v in layouts.items()}
+
+        events, page = [], 1
+        while True:
+            r = httpx.get(settings.indexer_api, timeout=30, params={
+                "module": "logs", "action": "getLogs", "address": self.contract.address,
+                "fromBlock": settings.registry_from_block, "toBlock": "latest", "page": page, "offset": 1000,
+            })
+            r.raise_for_status()
+            body = r.json()
+            result = body.get("result")
+            if not isinstance(result, list):
+                if "no records" in str(body.get("message", "")).lower():
+                    break
+                raise RuntimeError(f"Indexer error: {body.get('message')} {result}")
+            for log in result:
+                layout = by_topic.get(log["topics"][0].removeprefix("0x"))
+                if not layout:
+                    continue  # RegistrarSet and anything unrelated
+                action, names, types = layout
+                values = decode(types, bytes.fromhex(log["data"].removeprefix("0x")))
+                e = {"action": action, "txHash": log["transactionHash"], "ts": float(_hex(log["timeStamp"])),
+                     "block": _hex(log["blockNumber"]), "index": _hex(log["logIndex"]),
+                     "registrar": "0x" + log["topics"][-1][-40:]}
+                for name, value in zip(names, values):
+                    e[name] = "0x" + value.hex() if isinstance(value, bytes) else value
+                events.append(e)
+            if len(result) < 1000:
+                break
+            page += 1
+        events.sort(key=lambda e: (e["block"], e["index"]))
+        return events
+
+    async def events(self) -> list[dict]:
+        return await asyncio.to_thread(self._events_sync)
+
+    async def panel_count(self) -> int:
+        """Read from the contract itself; the indexer can lag a few minutes behind."""
+        return int(await asyncio.to_thread(self.contract.functions.panelCount().call))
 
     def info(self) -> dict:
         address = self.contract.address

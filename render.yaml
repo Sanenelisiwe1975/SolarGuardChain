@@ -1,20 +1,23 @@
-# Render blueprint: New > Blueprint > pick this repo. Gives one public HTTPS URL
-# for the dashboard, the buyer check and the phone sensor (no ngrok needed).
-# The free plan has no persistent disk: the demo data reloads after each deploy or idle restart.
+# Render blueprint for the API: New > Blueprint > pick this repo.
+# The web app is served by Vercel (frontend/vercel.json), which forwards /api here.
+# The free plan has no persistent disk: on each restart the API rebuilds its panels
+# from the Fuji contract's events, so the registry survives. Profiles and alerts reset.
 services:
   - type: web
-    name: solarguard
+    name: solarguard-api
     runtime: docker
     plan: free
     healthCheckPath: /api/health
     envVars:
-      - key: OWNER_SALT
-        generateValue: true
       - key: CHAIN_MODE
-        value: local          # set to fuji and add the two values below once the contract is deployed
-      - key: REGISTRY_ADDRESS
+        value: fuji
+      - key: REGISTRY_ADDRESS        # public contract address, safe to commit
+        value: "0xC5b0c5A4CC98d6eD8Ba8860e57145fCc069B06C7"
+      - key: REGISTRY_FROM_BLOCK     # block the contract was deployed in
+        value: "61378590"
+      - key: RELAYER_PRIVATE_KEY     # secret: paste in the Render dashboard
         sync: false
-      - key: RELAYER_PRIVATE_KEY
+      - key: OWNER_SALT              # secret: must be the SAME value as backend/.env, or owner IDs stop matching
         sync: false
       - key: GEMINI_API_KEY
         sync: false

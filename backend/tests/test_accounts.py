@@ -111,3 +111,29 @@ def test_buyer_check_reads_the_registry_not_the_app_table(client):
     r = client.get("/api/lookup/SG-0666").json()
     assert r["result"] == "stolen"
     assert r["matchesRegistry"] is False
+
+
+def test_restore_from_chain_events(client):
+    """After a disk wipe, panels and history come back from registry events alone."""
+    import asyncio
+
+    from app.chain import owner_hash
+    from app.seed import restore_from_chain
+
+    sg = client.app.state.sg
+    thandi, stranger = owner_hash("+27 71 000 0042"), owner_hash("+27 60 123 4567")
+    ev = lambda action, serial, i, **kw: {"action": action, "serial": serial, "txHash": f"0x{i:064x}",  # noqa: E731
+                                          "ts": 1_800_000_000.0 + i, "registrar": "0x" + "ab" * 20, **kw}
+    events = [
+        ev("registerPanel", "SG-0042", 1, ownerHash=thandi),
+        ev("registerPanel", "SG-7777", 2, ownerHash=stranger),
+        ev("transferOwnership", "SG-7777", 3, fromOwner=stranger, ownerHash=thandi),
+        ev("reportStolen", "SG-0042", 4, caseRef="CAS 1"),
+    ]
+    assert asyncio.run(restore_from_chain(sg, None, events)) == 2
+
+    p = client.get("/api/panels/SG-0042").json()
+    assert p["ownerName"] == "Thandi Mokoena" and p["area"] == "Soweto" and p["status"] == "stolen"
+    p = client.get("/api/panels/SG-7777").json()
+    assert p["ownerName"] == "Thandi Mokoena" and p["area"] == "Unknown area"
+    assert [e["kind"] for e in p["history"]] == ["transferred", "registered"]

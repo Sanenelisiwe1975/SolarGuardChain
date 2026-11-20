@@ -35,6 +35,10 @@ class Settings:
     registry_address: str = os.getenv("REGISTRY_ADDRESS", "")
     relayer_private_key: str = os.getenv("RELAYER_PRIVATE_KEY", "")
     explorer_base: str = os.getenv("EXPLORER_BASE", "https://testnet.snowtrace.io")
+    # Where to read the contract's past events after a restart. Public RPCs only
+    # return 100 blocks of logs per call, so an Etherscan-style indexer is used.
+    registry_from_block: int = int(os.getenv("REGISTRY_FROM_BLOCK", "0"))
+    indexer_api: str = os.getenv("INDEXER_API", "https://api.routescan.io/v2/network/testnet/evm/43113/etherscan/api")
 
     # Sensor timing
     heartbeat_timeout_s: float = float(os.getenv("HEARTBEAT_TIMEOUT_S", "10"))

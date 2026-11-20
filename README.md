@@ -46,15 +46,20 @@ Open `https://<your-id>.ngrok-free.app/sensor` on the phone that sits on the pan
 
 **No phone available?** Run `uv run python scripts/simulate.py`. It plays out normal → wind → theft.
 
-## Deploy to the cloud (Render, free)
+## Deploy: Vercel (web app) + Render (API)
 
-The `Dockerfile` builds the web app and serves it with the API from one container. `render.yaml` sets it up on Render:
+People use one Vercel URL. Vercel serves the web app and forwards `/api` to the API on Render, which runs as a normal server so the watchdog and live updates keep working.
 
-1. Push the repo to GitHub.
-2. In Render: **New → Blueprint**, pick the repo, and fill in the optional secrets when asked.
-3. You get one public HTTPS URL for the dashboard, the buyer check and the phone sensor. No ngrok needed.
+**1. API on Render** (`render.yaml`, Docker):
+1. In Render: **New → Blueprint**, pick this repo.
+2. When asked, paste `RELAYER_PRIVATE_KEY` and `OWNER_SALT`, using the **same values as `backend/.env`**. A different salt breaks owner IDs.
+3. Wait for `https://solarguard-api.onrender.com/api/health` to answer. If Render gave the service a different URL, update the `/api` rewrite in `frontend/vercel.json`.
 
-The free plan has no persistent disk, so the demo data reloads after each deploy or idle restart. With `CHAIN_MODE=fuji`, the registry itself still lives on-chain.
+**2. Web app on Vercel** (`frontend/vercel.json`):
+1. In Vercel: **Add New → Project**, import this repo, set **Root Directory** to `frontend`, and deploy.
+2. Open the Vercel URL on a phone: it is HTTPS, so the phone sensor works without ngrok.
+
+On a restart, Render's free plan starts with an empty disk. The API then rebuilds every panel and its history from the contract's events on Fuji (read through the Routescan indexer from `REGISTRY_FROM_BLOCK`), so the registry is never lost and nothing is re-registered. Owner profiles, sessions and alerts do reset, but an owner who signs up again with the same phone number gets their panels back. A free Render service also sleeps after 15 idle minutes, so the first request after that takes about a minute.
 
 ## Put the registry on Avalanche Fuji
 
@@ -64,15 +69,21 @@ npm test                                   # compile + 11 contract tests
 RELAYER_PRIVATE_KEY=0x... npm run deploy   # needs test AVAX from the Fuji faucet
 ```
 
-Then set these in `backend/.env`, delete `backend/data/solarguard.db`, and restart:
+Then set these in `backend/.env` and restart:
 
 ```
 CHAIN_MODE=fuji
-REGISTRY_ADDRESS=0x...        # printed by the deploy
+REGISTRY_ADDRESS=0x...          # printed by the deploy
+REGISTRY_FROM_BLOCK=...         # the deploy's block number (find it on Snowtrace)
 RELAYER_PRIVATE_KEY=0x...
+DB_PATH=data/solarguard-fuji.db # a fresh database file for this contract
 ```
 
-Every registry action now becomes a Fuji transaction with a Snowtrace link in the ownership history. The relayer pays gas, so users never see a wallet. To reset on Fuji, redeploy the contract and delete the database.
+On a brand-new contract the first start writes the demo data on-chain once. After that, every registry action becomes a Fuji transaction with a Snowtrace link in the ownership history. The relayer pays gas, so users never see a wallet. To reset on Fuji, redeploy the contract and point `DB_PATH` at a new file. Also update `render.yaml` with the new address and block.
+
+The tests always run on the local ledger (`backend/tests/conftest.py`), even when `.env` is set to Fuji.
+
+**Live contract:** [`0xC5b0c5A4CC98d6eD8Ba8860e57145fCc069B06C7`](https://testnet.snowtrace.io/address/0xC5b0c5A4CC98d6eD8Ba8860e57145fCc069B06C7) on Fuji.
 
 ## Optional integrations
 

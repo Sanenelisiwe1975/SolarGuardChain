@@ -19,7 +19,7 @@ from .chain import make_registry
 from .config import settings
 from .db import Database
 from .events import Broadcaster
-from .seed import seed
+from .seed import restore_from_chain, seed
 from .service import ServiceError, SolarGuard
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
@@ -94,7 +94,22 @@ def create_app(db_path: str | None = None, run_watchdog: bool = True) -> FastAPI
     @contextlib.asynccontextmanager
     async def lifespan(app: FastAPI):
         if not db.one("SELECT 1 FROM panels LIMIT 1"):
-            await seed(sg, accounts)
+            if sg.registry.mode == "fuji":
+                # The chain already holds the registry: rebuild from it, never re-register.
+                try:
+                    events = await sg.registry.events()
+                except Exception:
+                    logging.getLogger("solarguard").exception("Could not read registry events; starting empty")
+                    events = None
+                if events:
+                    await restore_from_chain(sg, accounts, events)
+                elif events == [] and await sg.registry.panel_count() == 0:
+                    await seed(sg, accounts)  # brand-new contract: write the demo data on-chain once
+                elif events == []:
+                    logging.getLogger("solarguard").warning(
+                        "Contract has panels but the indexer returned none yet; starting empty. Restart in a few minutes.")
+            else:
+                await seed(sg, accounts)
         task = None
         if run_watchdog:
             async def loop():
