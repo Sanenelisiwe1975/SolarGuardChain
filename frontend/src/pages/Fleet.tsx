@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { OctagonAlert } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { RegistryBadge, SensorBadge } from '../components/Badges'
-import { PanelGlyph } from '../components/PanelGlyph'
+import { PanelPhoto } from '../components/PanelPhoto'
 import { api } from '../lib/api'
 import { ago } from '../lib/format'
 
@@ -57,9 +57,9 @@ export function Fleet() {
             <li key={p.serial} className="border-b border-rule last:border-0">
               <Link
                 to={`/panels/${p.serial}`}
-                className="grid grid-cols-[64px_1fr] items-center gap-x-4 gap-y-2 px-4 py-4 hover:bg-silicon/60 md:grid-cols-[88px_1.2fr_1fr_1fr_110px] md:px-5"
+                className="grid grid-cols-[96px_1fr] items-center gap-x-4 gap-y-2 px-4 py-4 hover:bg-silicon/60 md:grid-cols-[96px_1.2fr_1fr_1fr_110px] md:px-5"
               >
-                <PanelGlyph state={p.sensorState} status={p.status} tilt={p.tilt} />
+                <PanelPhoto state={p.sensorState} status={p.status} tilt={p.tilt} serial={p.serial} />
                 <div className="min-w-0">
                   <p className="text-lg font-bold" style={{ fontStretch: '115%' }}>{p.serial}</p>
                   <p className="truncate text-sm text-muted">{p.ownerName}, {p.area}</p>

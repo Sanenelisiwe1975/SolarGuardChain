@@ -3,7 +3,7 @@ import { ArrowLeft } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { RegistryBadge, SensorBadge } from '../components/Badges'
-import { PanelGlyph } from '../components/PanelGlyph'
+import { PanelPhoto } from '../components/PanelPhoto'
 import { Timeline } from '../components/Timeline'
 import { useToast } from '../components/Toast'
 import { api, type Panel } from '../lib/api'
@@ -30,8 +30,8 @@ export function PanelDetail() {
       </Link>
 
       <section className="mt-4 grid gap-6 rounded-2xl border border-rule bg-sheet p-5 md:grid-cols-[340px_1fr] md:p-7">
-        <div className="flex items-center justify-center rounded-xl bg-silicon px-4 py-8 md:py-10">
-          <PanelGlyph state={p.sensorState} status={p.status} tilt={p.tilt} size="lg" className="max-w-full" />
+        <div className="flex items-center justify-center rounded-xl bg-silicon p-4">
+          <PanelPhoto state={p.sensorState} status={p.status} tilt={p.tilt} serial={p.serial} size="lg" />
         </div>
         <div>
           <h1 className="text-3xl font-bold md:text-4xl">{p.serial}</h1>
