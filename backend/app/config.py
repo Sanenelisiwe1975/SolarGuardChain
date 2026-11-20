@@ -32,9 +32,11 @@ class Settings:
     # Chain: "local" (hash-chained demo ledger) or "fuji" (Avalanche C-Chain testnet)
     chain_mode: str = os.getenv("CHAIN_MODE", "local").lower()
     rpc_url: str = os.getenv("RPC_URL", "https://api.avax-test.network/ext/bc/C/rpc")
+    # The chain RPC_URL must serve; 43113 is Avalanche Fuji. Checked on startup.
+    chain_id: int = int(os.getenv("CHAIN_ID", "43113"))
     registry_address: str = os.getenv("REGISTRY_ADDRESS", "")
     relayer_private_key: str = os.getenv("RELAYER_PRIVATE_KEY", "")
-    explorer_base: str = os.getenv("EXPLORER_BASE", "https://testnet.snowtrace.io")
+    explorer_base: str = os.getenv("EXPLORER_BASE", "https://testnet.snowscan.xyz")
     # Where to read the contract's past events after a restart. Public RPCs only
     # return 100 blocks of logs per call, so an Etherscan-style indexer is used.
     registry_from_block: int = int(os.getenv("REGISTRY_FROM_BLOCK", "0"))

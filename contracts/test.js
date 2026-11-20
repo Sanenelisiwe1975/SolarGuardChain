@@ -32,6 +32,7 @@ async function expectRevert(promise, name) {
   const factory = new ethers.ContractFactory(artifact.abi, artifact.bytecode, admin);
   const reg = await factory.deploy();
   await reg.waitForDeployment();
+  const REGISTRAR_ROLE = await reg.REGISTRAR_ROLE();
 
   let passed = 0;
   const t = async (name, fn) => { await fn(); passed++; console.log("  ✓", name); };
@@ -41,11 +42,11 @@ async function expectRevert(promise, name) {
   });
 
   await t("strangers cannot register panels", async () => {
-    await expectRevert(reg.connect(stranger).registerPanel.staticCall("SG-1", h("alice")), "NotRegistrar");
+    await expectRevert(reg.connect(stranger).registerPanel.staticCall("SG-1", h("alice")), "AccessControlUnauthorizedAccount");
   });
 
   await t("admin can add an installer as registrar", async () => {
-    await (await reg.setRegistrar(await installer.getAddress(), true)).wait();
+    await (await reg.grantRole(REGISTRAR_ROLE, await installer.getAddress())).wait();
     assert.equal(await reg.isRegistrar(await installer.getAddress()), true);
   });
 
@@ -92,7 +93,39 @@ async function expectRevert(promise, name) {
   });
 
   await t("only admin can manage registrars", async () => {
-    await expectRevert(reg.connect(installer).setRegistrar.staticCall(await stranger.getAddress(), true), "NotAdmin");
+    await expectRevert(
+      reg.connect(installer).grantRole.staticCall(REGISTRAR_ROLE, await stranger.getAddress()),
+      "AccessControlUnauthorizedAccount"
+    );
+  });
+
+  await t("only the admin can pause", async () => {
+    await expectRevert(reg.connect(installer).pause.staticCall(), "AccessControlUnauthorizedAccount");
+    await expectRevert(reg.connect(stranger).pause.staticCall(), "AccessControlUnauthorizedAccount");
+    await (await reg.pause()).wait();
+    assert.equal(await reg.paused(), true);
+  });
+
+  await t("paused contract rejects writes but getPanel still reads", async () => {
+    await expectRevert(reg.connect(installer).registerPanel.staticCall("SG-2", h("carol")), "EnforcedPause");
+    await expectRevert(reg.reportStolen.staticCall("SG-1", "x"), "EnforcedPause");
+    await expectRevert(reg.connect(installer).unpause.staticCall(), "AccessControlUnauthorizedAccount");
+    assert.equal((await reg.getPanel("SG-1")).status, 1n);
+  });
+
+  await t("unpause restores writes", async () => {
+    await (await reg.unpause()).wait();
+    await (await reg.connect(installer).registerPanel("SG-2", h("carol"))).wait();
+    assert.equal((await reg.getPanel("SG-2")).status, 1n);
+  });
+
+  await t("revoked registrar loses write access", async () => {
+    await (await reg.revokeRole(REGISTRAR_ROLE, await installer.getAddress())).wait();
+    assert.equal(await reg.isRegistrar(await installer.getAddress()), false);
+    await expectRevert(
+      reg.connect(installer).registerPanel.staticCall("SG-3", h("dave")),
+      "AccessControlUnauthorizedAccount"
+    );
   });
 
   console.log(`\n${passed} passing`);

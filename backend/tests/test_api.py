@@ -22,6 +22,24 @@ def test_seeded_fleet(client):
     assert stats["stolen"] == 1
     assert stats["registry"]["mode"] == "local"
     assert stats["registry"]["intact"] is True
+    assert stats["registry"]["chainId"] is None
+    assert stats["registry"]["rpcUrl"] is None
+
+
+def test_rpc_url_with_a_key_is_never_shared(monkeypatch):
+    import dataclasses
+
+    from app import chain
+
+    def rpc(url, chain_id=43113):
+        monkeypatch.setattr(chain, "settings", dataclasses.replace(chain.settings, rpc_url=url, chain_id=chain_id))
+        return chain.public_rpc_url()
+
+    assert rpc("https://api.avax-test.network/ext/bc/C/rpc") == "https://api.avax-test.network/ext/bc/C/rpc"
+    assert rpc("http://127.0.0.1:8545") == "http://127.0.0.1:8545"
+    assert rpc("https://avax-fuji.infura.io/v3/secret") == chain.FUJI_PUBLIC_RPC
+    assert rpc("https://api.avax-test.network/ext/bc/C/rpc?apikey=secret") == chain.FUJI_PUBLIC_RPC
+    assert rpc("https://rpc.example/secret", chain_id=1) is None
 
 
 def test_lookup_hides_personal_data(client):

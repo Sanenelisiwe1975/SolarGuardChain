@@ -59,7 +59,10 @@ export function Demo() {
         <h2 className="font-bold">Registry</h2>
         {reg && (
           <dl className="mt-3 space-y-2 text-[15px]">
-            <div><dt className="text-sm text-muted">Network</dt><dd className="font-medium">{reg.network}</dd></div>
+            <div><dt className="text-sm text-muted">Network</dt><dd className="font-medium">
+              {reg.network}
+              {reg.chainId != null && <span className="font-normal text-muted"> · chain ID {reg.chainId}</span>}
+            </dd></div>
             {reg.contractAddress && (
               <div>
                 <dt className="text-sm text-muted">Contract</dt>

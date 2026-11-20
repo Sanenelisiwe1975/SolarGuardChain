@@ -1,14 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
+
 /// @title SolarGuard Registry
 /// @notice Shared ownership and theft registry for solar panels, keyed by the
 ///         manufacturer serial laminated under the glass. No personal data is
 ///         stored: owners are represented by a salted hash kept off-chain.
 /// @dev Registrars are accredited parties (installers, solar providers,
-///      insurers). Each registrar signs its own transactions, so no single
-///      company controls the record.
-contract SolarRegistry {
+///      insurers) holding REGISTRAR_ROLE. Each registrar signs its own
+///      transactions, so no single company controls the record. Roles and the
+///      emergency pause come from audited OpenZeppelin contracts.
+contract SolarRegistry is AccessControl, Pausable {
     enum Status { Unregistered, Clean, Stolen }
 
     struct Panel {
@@ -20,19 +24,16 @@ contract SolarRegistry {
         Status status;
     }
 
-    address public admin;
-    mapping(address => bool) public isRegistrar;
+    bytes32 public constant REGISTRAR_ROLE = keccak256("REGISTRAR_ROLE");
+
     mapping(bytes32 => Panel) private panels;
     uint256 public panelCount;
 
-    event RegistrarSet(address indexed registrar, bool allowed);
     event PanelRegistered(bytes32 indexed serialKey, string serial, bytes32 ownerHash, address indexed registrar);
     event OwnershipTransferred(bytes32 indexed serialKey, string serial, bytes32 fromOwner, bytes32 toOwner, address indexed registrar);
     event PanelReportedStolen(bytes32 indexed serialKey, string serial, string caseRef, address indexed reporter);
     event PanelRecovered(bytes32 indexed serialKey, string serial, address indexed reporter);
 
-    error NotAdmin();
-    error NotRegistrar();
     error AlreadyRegistered();
     error NotRegistered();
     error PanelIsStolen();
@@ -40,32 +41,30 @@ contract SolarRegistry {
     error EmptySerial();
     error EmptyOwner();
 
-    modifier onlyAdmin() {
-        if (msg.sender != admin) revert NotAdmin();
-        _;
-    }
-
-    modifier onlyRegistrar() {
-        if (!isRegistrar[msg.sender]) revert NotRegistrar();
-        _;
-    }
-
     constructor() {
-        admin = msg.sender;
-        isRegistrar[msg.sender] = true;
-        emit RegistrarSet(msg.sender, true);
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(REGISTRAR_ROLE, msg.sender);
     }
 
-    function setRegistrar(address registrar, bool allowed) external onlyAdmin {
-        isRegistrar[registrar] = allowed;
-        emit RegistrarSet(registrar, allowed);
+    /// @notice The backend checks its relayer with this on startup.
+    function isRegistrar(address account) external view returns (bool) {
+        return hasRole(REGISTRAR_ROLE, account);
+    }
+
+    /// @notice Emergency stop: blocks every write while reads keep working.
+    function pause() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _pause();
+    }
+
+    function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _unpause();
     }
 
     function serialKey(string calldata serial) public pure returns (bytes32) {
         return keccak256(bytes(serial));
     }
 
-    function registerPanel(string calldata serial, bytes32 ownerHash) external onlyRegistrar {
+    function registerPanel(string calldata serial, bytes32 ownerHash) external onlyRole(REGISTRAR_ROLE) whenNotPaused {
         if (bytes(serial).length == 0) revert EmptySerial();
         if (ownerHash == bytes32(0)) revert EmptyOwner();
         bytes32 key = keccak256(bytes(serial));
@@ -82,7 +81,7 @@ contract SolarRegistry {
         emit PanelRegistered(key, serial, ownerHash, msg.sender);
     }
 
-    function transferOwnership(string calldata serial, bytes32 newOwnerHash) external onlyRegistrar {
+    function transferOwnership(string calldata serial, bytes32 newOwnerHash) external onlyRole(REGISTRAR_ROLE) whenNotPaused {
         if (newOwnerHash == bytes32(0)) revert EmptyOwner();
         bytes32 key = keccak256(bytes(serial));
         Panel storage p = panels[key];
@@ -97,7 +96,7 @@ contract SolarRegistry {
         emit OwnershipTransferred(key, serial, previous, newOwnerHash, msg.sender);
     }
 
-    function reportStolen(string calldata serial, string calldata caseRef) external onlyRegistrar {
+    function reportStolen(string calldata serial, string calldata caseRef) external onlyRole(REGISTRAR_ROLE) whenNotPaused {
         bytes32 key = keccak256(bytes(serial));
         Panel storage p = panels[key];
         if (p.status == Status.Unregistered) revert NotRegistered();
@@ -109,7 +108,7 @@ contract SolarRegistry {
         emit PanelReportedStolen(key, serial, caseRef, msg.sender);
     }
 
-    function markRecovered(string calldata serial) external onlyRegistrar {
+    function markRecovered(string calldata serial) external onlyRole(REGISTRAR_ROLE) whenNotPaused {
         bytes32 key = keccak256(bytes(serial));
         Panel storage p = panels[key];
         if (p.status != Status.Stolen) revert PanelNotStolen();

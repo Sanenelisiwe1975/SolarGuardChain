@@ -12,7 +12,7 @@ Protects solar panels and lets anyone check whether a second-hand panel is stole
 Works on phones and laptops: the same web app, installable to the home screen.
 
 ```
-contracts/   SolarRegistry.sol, compile, tests (11), Fuji deploy script
+contracts/   SolarRegistry.sol (OpenZeppelin roles + pause), compile, tests (15), Fuji deploy script
 backend/     FastAPI: registry, sensor events, watchdog, AI layer, live updates; serves the web app
 frontend/    React + TypeScript + Tailwind, mobile-first
 ```
@@ -63,27 +63,38 @@ On a restart, Render's free plan starts with an empty disk. The API then rebuild
 
 ## Put the registry on Avalanche Fuji
 
-```bash
-cd contracts && npm ci
-npm test                                   # compile + 11 contract tests
-RELAYER_PRIVATE_KEY=0x... npm run deploy   # needs test AVAX from the Fuji faucet
-```
+The contract (`contracts/SolarRegistry.sol`) uses audited OpenZeppelin building blocks: **AccessControl** decides who may write (accredited installers, providers and insurers hold `REGISTRAR_ROLE`; the deployer is admin), and **Pausable** lets the admin freeze all writes in an emergency while reads keep working.
 
-Then set these in `backend/.env` and restart:
+1. Create a **separate dev wallet** in Core or MetaMask. Never use one that holds real funds.
+2. Get test AVAX from [core.app/tools/testnet-faucet](https://core.app/tools/testnet-faucet) or [build.avax.network](https://build.avax.network).
+3. Test, then deploy. The script refuses any chain other than Fuji (43113) and stops if the wallet has no AVAX.
+   ```bash
+   cd contracts && npm ci
+   npm test                                   # compile + 15 contract tests
+   RELAYER_PRIVATE_KEY=0x... npm run deploy   # prints the address, block and .env lines
+   ```
+4. Verify the source on [testnet.snowscan.xyz](https://testnet.snowscan.xyz): open the contract, choose **Verify**, pick **Standard JSON input**, compiler **0.8.24**, and upload `contracts/build/verify-input.json`.
+5. Set these in `backend/.env`, delete the old database (or point `DB_PATH` at a new file), and restart:
+   ```
+   CHAIN_MODE=fuji
+   CHAIN_ID=43113
+   REGISTRY_ADDRESS=0x...          # printed by the deploy
+   REGISTRY_FROM_BLOCK=...         # printed by the deploy
+   RELAYER_PRIVATE_KEY=0x...
+   DB_PATH=data/solarguard-fuji.db # a fresh database file for this contract
+   ```
 
-```
-CHAIN_MODE=fuji
-REGISTRY_ADDRESS=0x...          # printed by the deploy
-REGISTRY_FROM_BLOCK=...         # the deploy's block number (find it on Snowtrace)
-RELAYER_PRIVATE_KEY=0x...
-DB_PATH=data/solarguard-fuji.db # a fresh database file for this contract
-```
+On start the API checks that `RPC_URL` really is chain `CHAIN_ID` and refuses to run otherwise, and it warns if the relayer wallet lacks `REGISTRAR_ROLE`. On a brand-new contract the first start writes the demo data on-chain once. After that, every registry action becomes a Fuji transaction with an explorer link in the ownership history. **The relayer pays gas, so users never need a wallet.**
 
-On a brand-new contract the first start writes the demo data on-chain once. After that, every registry action becomes a Fuji transaction with a Snowtrace link in the ownership history. The relayer pays gas, so users never see a wallet. To reset on Fuji, redeploy the contract and point `DB_PATH` at a new file. Also update `render.yaml` with the new address and block.
+**The Check screen verifies against the contract itself.** After the server's verdict, the buyer's browser calls `getPanel` on Fuji directly (a free read, no wallet) and shows "Confirmed on Avalanche Fuji", or a red warning if the contract disagrees with the server. Only a public RPC URL is ever sent to the browser, never one with an API key.
+
+**A Fuji chain can't be reset.** To start over, redeploy the contract and delete the database (or use a new `DB_PATH`). Also update `render.yaml` with the new address and block.
+
+**Dates:** the demo data in the app is backdated to look like months of use, but Fuji transactions carry the real date they were sent, so the explorer shows today's date for the seeded history.
 
 The tests always run on the local ledger (`backend/tests/conftest.py`), even when `.env` is set to Fuji.
 
-**Live contract:** [`0xC5b0c5A4CC98d6eD8Ba8860e57145fCc069B06C7`](https://testnet.snowtrace.io/address/0xC5b0c5A4CC98d6eD8Ba8860e57145fCc069B06C7) on Fuji.
+**Live contract:** [`0xC5b0c5A4CC98d6eD8Ba8860e57145fCc069B06C7`](https://testnet.snowscan.xyz/address/0xC5b0c5A4CC98d6eD8Ba8860e57145fCc069B06C7) on Fuji. It predates the OpenZeppelin version; redeploy to get roles and pause.
 
 ## Optional integrations
 
@@ -106,8 +117,8 @@ Record a backup video of this run before the pitch.
 ## Tests
 
 ```bash
-cd backend && uv run pytest        # 19 API tests: full flow, privacy, watchdog, tamper detection, profiles, transfers
-cd contracts && npm test           # 11 contract tests
+cd backend && uv run pytest        # 21 API tests: full flow, privacy, watchdog, tamper detection, profiles, transfers
+cd contracts && npm test           # 15 contract tests
 ```
 
 ## Honest limits (say these before the judges ask)

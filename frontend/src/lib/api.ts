@@ -55,6 +55,8 @@ export interface RegistryInfo {
   network: string
   contractAddress: string | null
   explorerUrl: string | null
+  chainId: number | null
+  rpcUrl: string | null
   entries?: number
   intact?: boolean
 }

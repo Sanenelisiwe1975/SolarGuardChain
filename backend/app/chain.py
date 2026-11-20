@@ -68,6 +68,26 @@ def owner_hash(contact: str) -> str:
     return "0x" + digest
 
 
+FUJI_CHAIN_ID = 43113
+FUJI_PUBLIC_RPC = "https://api.avax-test.network/ext/bc/C/rpc"
+
+
+def public_rpc_url() -> str | None:
+    """The RPC URL buyers' browsers may use to read the contract themselves.
+
+    Provider URLs often carry an API key, so RPC_URL is only shared when it is
+    the public Avalanche endpoint or a local test chain; otherwise browsers get
+    the public Fuji endpoint, or nothing on other chains."""
+    from urllib.parse import urlsplit
+
+    parts = urlsplit(settings.rpc_url)
+    if not (parts.username or parts.password or parts.query) and parts.hostname in (
+        "api.avax-test.network", "127.0.0.1", "localhost",
+    ):
+        return settings.rpc_url
+    return FUJI_PUBLIC_RPC if settings.chain_id == FUJI_CHAIN_ID else None
+
+
 def _hex(v: str) -> int:
     """Indexers write zero as a bare '0x'."""
     v = v.removeprefix("0x")
@@ -145,6 +165,8 @@ class LocalLedger:
             "network": "Local hash-chained ledger",
             "contractAddress": None,
             "explorerUrl": None,
+            "chainId": None,
+            "rpcUrl": None,
             "entries": count,
             "intact": self.verify(),
         }
@@ -163,12 +185,21 @@ class FujiRegistry:
         self.contract = self.w3.eth.contract(address=Web3.to_checksum_address(settings.registry_address), abi=abi)
         self._nonce_lock = asyncio.Lock()
 
+        # Refuse to start against the wrong network rather than sign for it.
+        self.chain_id = self.w3.eth.chain_id
+        if self.chain_id != settings.chain_id:
+            raise RuntimeError(
+                f"RPC is chain {self.chain_id} but CHAIN_ID is {settings.chain_id}. Check RPC_URL")
+        if not self.contract.functions.isRegistrar(self.account.address).call():
+            log.warning("Relayer %s is not a registrar on %s; writes will revert. Grant it REGISTRAR_ROLE.",
+                        self.account.address, self.contract.address)
+
     def _send(self, fn) -> str:
         tx = fn.build_transaction(
             {
                 "from": self.account.address,
                 "nonce": self.w3.eth.get_transaction_count(self.account.address, "pending"),
-                "chainId": self.w3.eth.chain_id,
+                "chainId": self.chain_id,
             }
         )
         signed = self.account.sign_transaction(tx)
@@ -241,7 +272,7 @@ class FujiRegistry:
             for log in result:
                 layout = by_topic.get(log["topics"][0].removeprefix("0x"))
                 if not layout:
-                    continue  # RegistrarSet and anything unrelated
+                    continue  # role changes, pauses and anything unrelated
                 action, names, types = layout
                 values = decode(types, bytes.fromhex(log["data"].removeprefix("0x")))
                 e = {"action": action, "txHash": log["transactionHash"], "ts": float(_hex(log["timeStamp"])),
@@ -268,9 +299,11 @@ class FujiRegistry:
         return {
             "mode": self.mode,
             "label": self.label,
-            "network": "Avalanche Fuji C-Chain (testnet)",
+            "network": "Avalanche Fuji C-Chain (testnet)" if self.chain_id == FUJI_CHAIN_ID else f"EVM chain {self.chain_id}",
             "contractAddress": address,
             "explorerUrl": f"{settings.explorer_base}/address/{address}",
+            "chainId": self.chain_id,
+            "rpcUrl": public_rpc_url(),
             "relayer": self.account.address,
         }
 

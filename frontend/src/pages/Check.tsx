@@ -3,6 +3,7 @@ import clsx from 'clsx'
 import { CircleCheck, CircleHelp, OctagonAlert, ScanLine, ShieldAlert, ShieldCheck } from 'lucide-react'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { OnChainProof } from '../components/OnChainProof'
 import { Scanner } from '../components/Scanner'
 import { Timeline } from '../components/Timeline'
 import { api, type Lookup } from '../lib/api'
@@ -99,6 +100,8 @@ function Verdict({ result: r }: { result: Lookup }) {
         <p className="mt-1 text-lg font-semibold opacity-90">{r.serial}{r.model ? `, ${r.model}` : ''}</p>
         <p className="mt-3 max-w-prose text-[17px] leading-relaxed">{view.body}</p>
       </div>
+
+      <OnChainProof result={r} />
 
       {r.registry && (
         <p className={clsx('mt-3 flex items-center gap-2 text-sm', r.verifiedOnRegistry ? 'text-muted' : 'font-medium text-breach')}>
