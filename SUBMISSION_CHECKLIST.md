@@ -1,6 +1,6 @@
 # BACISS 2026 submission checklist: SolarGuard
 
-Checked by Claude Code on 20 November 2026. `[x]` verified, `[~]` partly done (note follows), `[ ]` not done or not checkable from the repo.
+Checked by Claude Code on 20–21 November 2026. `[x]` verified, `[~]` partly done (note follows), `[ ]` not done or not checkable from the repo.
 
 Deadline: Demo Day, Saturday 21 November 2026. Seven-minute pitch plus three minutes of Q&A. Eligibility gate: without a working Fuji deployment, the team cannot win any prize.
 
@@ -14,7 +14,7 @@ Deadline: Demo Day, Saturday 21 November 2026. Seven-minute pitch plus three min
 - [~] Explorer link is in README.md: uses `https://testnet.snowtrace.io/address/0x1F9F…4187`, because the Snowscan testnet domain doesn't exist
 - [ ] The source code is verified. Submitted through Routescan's API on 20 Nov (Standard JSON input, 0.8.24, `contracts/build/verify-input.json`), but it stayed "Pending in queue". Check the contract page; if it's still unverified, use **Verify & publish** on Snowtrace with the same file
 - [x] backend/.env has CHAIN_MODE=fuji, REGISTRY_ADDRESS, RELAYER_PRIVATE_KEY and CHAIN_ID=43113
-- [ ] With the backend running, GET /api/stats shows "mode": "fuji" and "chainId": 43113. Not run yet on purpose: the first Fuji start writes the demo data on-chain with owner hashes, so change OWNER_SALT first (see A5). Verified on a local 43113 chain: `mode: fuji`, `chainId: 43113`
+- [x] With the backend running, GET /api/stats shows "mode": "fuji" and "chainId": 43113 (checked on https://solarguard-api.onrender.com/api/stats, 21 Nov)
 - [x] The relayer wallet has REGISTRAR_ROLE: `isRegistrar(0x780f…81ea7)` returns true on Fuji
 - [x] The relayer wallet holds enough test AVAX for at least 20 transactions: about 0.5 AVAX, at roughly 0.00000000002 AVAX per registerPanel
 
@@ -29,13 +29,13 @@ Deadline: Demo Day, Saturday 21 November 2026. Seven-minute pitch plus three min
 - [x] Frontend builds: `npm run build` with no TypeScript errors
 
 ### A3. Live demo of at least two state-changing transactions, plus the track workflow
-These need the backend running on Fuji, after OWNER_SALT is changed. The first start already sends registerPanel ×4, transferOwnership ×1 and reportStolen ×1.
+The Render API's first start already sent registerPanel ×4, transferOwnership ×1 and reportStolen ×1 on Fuji (the contract holds 4 panels; SG-0666 is stolen). The items below are about doing them live from the UI.
 - [ ] registerPanel works on Fuji from the Register screen and appears on the explorer
 - [ ] reportStolen works on Fuji (via an alert's "Report stolen" or the panel page) and appears on the explorer
 - [ ] transferOwnership works on Fuji (bonus third transaction)
 - [ ] markRecovered works on Fuji (bonus fourth transaction)
 - [~] Each transaction in the ownership history links to its explorer page: the code builds `EXPLORER_BASE/tx/<hash>` (Snowtrace); not yet seen on real Fuji
-- [~] The Check screen shows "Confirmed on Avalanche Fuji" for a stolen serial: verified in a browser against a local 43113 chain; not yet on real Fuji
+- [x] The Check screen shows "Confirmed on Avalanche Fuji" for a stolen serial: checked in a browser on https://frontend-omega-flax-30.vercel.app/check/SG-0666 (21 Nov)
 - [ ] Ask the organisers on Saturday morning what "the required track workflow" means, and map it to the demo. Write the answer here: ____________
 
 ### A4. Short explanation: user problem, why Avalanche, next milestone
@@ -51,7 +51,7 @@ These need the backend running on Fuji, after OWNER_SALT is changed. The first s
 - [x] Nothing personal goes on-chain: the contract stores only the owner hash, registrar, timestamps, transfer count and status; the serial and case reference are in events
 - [x] The Register form tells users "Demo: use mock names and numbers only" (added 20 Nov)
 - [x] The public lookup returns no names or phone numbers: `test_lookup_hides_personal_data` passes
-- [ ] OWNER_SALT in .env is changed from the default value. **Still the default.** Change it before the first Fuji start, and use the same value on Render
+- [x] OWNER_SALT in .env is changed from the default value (random 64-character value, set 21 Nov). Make sure Render's OWNER_SALT is the same value; this can't be checked from the repo
 
 ## B. Avalanche judging rubric
 
@@ -82,7 +82,7 @@ These need the backend running on Fuji, after OWNER_SALT is changed. The first s
 - [ ] Technical architecture: the architecture slide is in the deck, and the blockchain's role and the security choices are explained
 - [ ] Innovation: the sensor and registry together cover detection and resale; the buyer verifies without trusting the server
 - [ ] AI & cloud implementation:
-  - [ ] The backend is deployed to a cloud host on a public HTTPS URL. **`solarguard-api.onrender.com` returns 404 with `x-render-routing: no-server`**: no Render service exists at the URL `frontend/vercel.json` forwards to
+  - [x] The backend is deployed to a cloud host on a public HTTPS URL: https://solarguard-api.onrender.com (Render), with the web app on https://frontend-omega-flax-30.vercel.app (Vercel), which forwards `/api` to it
   - [ ] GEMINI_API_KEY is set on the cloud host, so alerts are AI-written (it is also empty in the local `.env`)
   - [~] The demo shows wind gives no alert and a lift gives an alert: built and covered by the backend tests; rehearse it
   - [~] The demo shows the power-outage switch: built (Demo controls) and tested; rehearse it
@@ -90,7 +90,7 @@ These need the backend running on Fuji, after OWNER_SALT is changed. The first s
 - [ ] Pitch delivery: rehearsed to 6:30, all five team members know the Q&A answers (section E)
 
 ## D. Demo readiness (check on Saturday morning)
-- [ ] The cloud URL loads on a laptop and on a phone
+- [~] The cloud URL loads on a laptop and on a phone: https://frontend-omega-flax-30.vercel.app loads on a laptop; check it on a phone
 - [ ] The phone sensor runs at <cloud URL>/sensor over HTTPS and motion permission is granted
 - [ ] Demo panel SG-0042 is clean, with no open alerts (use Restore demo data, or a fresh contract if on Fuji)
 - [ ] Props ready: a board or panel with the serial label, tape, a fan, two charged phones, a hotspot
@@ -111,10 +111,10 @@ These match how the code and README work; whether the team knows them can't be c
 - [ ] "Where is personal data stored?" Off-chain only. The chain holds a salted hash of the owner's contact, and the demo uses mock identities.
 
 ## Needs the team
-1. **OWNER_SALT**: set a long random value in `backend/.env` **before** the first Fuji start, and the same value on Render. Owner hashes are written on-chain at that first start, so changing the salt afterwards would orphan them.
-2. **First Fuji start** (`cd backend && uv run uvicorn app.main:app --port 8000`) to seed the contract, then confirm `/api/stats` and do the A3 transactions from the UI, including markRecovered.
-3. **Source verification**: check whether the Routescan submission went through; if not, verify manually on Snowtrace.
-4. **Cloud API URL**: deploy the Render service (or point `frontend/vercel.json` at the real URL), and set RELAYER_PRIVATE_KEY, OWNER_SALT and GEMINI_API_KEY there.
-5. **Vercel URL**: not in the repo; add it to the README once live.
+1. **Live transactions from the UI** on https://frontend-omega-flax-30.vercel.app: register a panel, report one stolen, transfer one and mark one recovered; check each has a Snowtrace link (A3).
+2. **Source verification**: the Routescan API submission stayed "Pending in queue". Verify manually on Snowtrace with `contracts/build/verify-input.json`.
+3. **GEMINI_API_KEY** on Render (Environment tab), so alerts are AI-written.
+4. **Phone check**: open the Vercel URL and `/sensor` on a phone and grant motion permission.
+5. **Wake the API** a few minutes before the pitch: the free Render plan sleeps after 15 idle minutes.
 6. **Track workflow** answer from the organisers (A3).
 7. Pitch slides, evidence sources, rehearsal, props, backup video, training recordings, second wallet (B2, B4, C, D, E).

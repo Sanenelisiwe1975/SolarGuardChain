@@ -21,6 +21,10 @@ frontend/    React + TypeScript + Tailwind, mobile-first
 
 **Contract on Avalanche Fuji C-Chain (chain ID 43113):** [`0x1F9F13Ba36A6E65E319C4D02a7B7a4835DDF4187`](https://testnet.snowtrace.io/address/0x1F9F13Ba36A6E65E319C4D02a7B7a4835DDF4187)
 
+**Live app:** https://frontend-omega-flax-30.vercel.app (phone sensor at [/sensor](https://frontend-omega-flax-30.vercel.app/sensor), buyer check at [/check](https://frontend-omega-flax-30.vercel.app/check))
+
+**API:** https://solarguard-api.onrender.com ([health](https://solarguard-api.onrender.com/api/health)). It runs on Render's free plan and sleeps after 15 idle minutes, so the first request after that takes about a minute.
+
 **Problem.** Solar panels are stolen by organised syndicates and resold second-hand, and a buyer has no way to check whether a serial is stolen. Owners lose their systems, while solar providers and insurers absorb the losses and can't trace recovered panels back to their owners.
 
 **Why Avalanche.**
