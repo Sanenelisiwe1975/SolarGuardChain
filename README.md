@@ -17,6 +17,20 @@ backend/     FastAPI: registry, sensor events, watchdog, AI layer, live updates;
 frontend/    React + TypeScript + Tailwind, mobile-first
 ```
 
+## Submission
+
+**Contract on Avalanche Fuji C-Chain (chain ID 43113):** [`0x1F9F13Ba36A6E65E319C4D02a7B7a4835DDF4187`](https://testnet.snowtrace.io/address/0x1F9F13Ba36A6E65E319C4D02a7B7a4835DDF4187)
+
+**Problem.** Solar panels are stolen by organised syndicates and resold second-hand, and a buyer has no way to check whether a serial is stolen. Owners lose their systems, while solar providers and insurers absorb the losses and can't trace recovered panels back to their owners.
+
+**Why Avalanche.**
+- Fast finality and low fees, so every registration, transfer and theft report is a real transaction that costs a fraction of a cent.
+- EVM, so the contract builds on audited OpenZeppelin code (AccessControl with `REGISTRAR_ROLE`, and Pausable).
+- One shared record that no single installer, insurer or police station controls, and that anyone can read without a wallet.
+- A growth path to a dedicated, permissioned Avalanche L1 where only accredited installers, insurers and SAPS can write.
+
+**Next milestone.** A paid 30-site pilot with one solar provider using the ESP32 sensor, then a multisig admin and an independent audit before mainnet.
+
 ## Run it (about 5 minutes)
 
 You need Node 20+, and [uv](https://docs.astral.sh/uv/) for Python.

@@ -42,6 +42,9 @@ export function Register() {
           <input id="serial" className="field font-semibold uppercase" required minLength={3} maxLength={64}
             placeholder="SG-0108" value={form.serial} onChange={set('serial')} autoCapitalize="characters" />
         </div>
+        <p className="rounded-lg bg-gust-soft px-3 py-2 text-sm font-medium text-gust">
+          Demo: use mock names and numbers only. Registrations are written to a public test network.
+        </p>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className="label" htmlFor="on">Owner's name</label>
